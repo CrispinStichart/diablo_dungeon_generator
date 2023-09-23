@@ -4,6 +4,8 @@ import diablo1_dungeon_generation as d1
 
 TILE_DIR = "pokemon_tileset/"
 TILE_SIZE = 32
+
+
 def load_tiles():
     tiles = {}
     for tile_filename in listdir(TILE_DIR):
@@ -24,7 +26,6 @@ def main():
     _, world = d1.try_generation()
     for row in world:
         for tile in row:
-            sprite = None
             if tile.is_dividing_wall:
                 sprite = tiles["rock"]
             elif not tile.is_walkable and tile.value == 0:
@@ -34,7 +35,7 @@ def main():
             if sprite:
                 canvas.paste(sprite, (tile.x * TILE_SIZE, tile.y * TILE_SIZE))
 
-    canvas.save("pokemon_dungeon.png")
+    canvas.save("output/pokemon_dungeon.png")
 
 
 if __name__ == "__main__":
