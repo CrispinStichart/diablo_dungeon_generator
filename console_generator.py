@@ -56,12 +56,14 @@ def benchmark():
         print(f"Try {_i}, took average so far: {total_tries/(_i+1)}")
 
 
-def main():
+def debug():
     try:
         with open("output/world_without_walls.pickle", "rb") as f:
             world = pickle.load(f)
             generator = d1.Generator(world=world, seed=666)
-            generator.add_walls()
+            generator.marching_squares()
+            spans = generator.add_walls()
+            generator.add_doors(spans)
             generator.marching_squares()
             can_path, size = generator.pathable()
 
@@ -77,7 +79,13 @@ def main():
         with open("output/world_without_walls.pickle", "wb") as f:
             pickle.dump(world, f)
 
+def main():
+    generator = d1.Generator()
+    tries, world = generator.try_generation()
+    print(world_to_string(world))
+    print(f"Took {tries} tries.")
 
 if __name__ == "__main__":
+    # debug()
     main()
     # benchmark()

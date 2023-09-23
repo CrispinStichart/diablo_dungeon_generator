@@ -83,6 +83,7 @@ class Tile:
     is_walkable: bool = False
     is_vertical_divider: bool = False
     divider_type: DividerType = DividerType.ROCK
+    is_span_connection = False
 
     def in_world_bounds(self) -> bool:
         """Includes a 1-tile buffer around the outside."""
@@ -283,66 +284,13 @@ class Generator:
                     t.value <<= 1
                 t.value >>= 1
 
-    def add_wall(self, tile: Tile, direction: tuple[int, int]):
-        """Adds a wall stretching along a random axis from a corner to the next wall."""
-        dx, dy = direction
-        # Save the original position, but stepped in once so it's a newly added wall
-        # tile.
-        og_x, og_y = tile.x + dx, tile.y + dy
-        x, y = og_x, og_y
-        # This list holds all the actual wall tiles. This doesn't includes walls
-        # that were transmuted into solid walls. This way, we don't open a door that
-        # leads to a solid wall. Each nested list represents a span of walls that
-        # have walkable tiles on each side, all of which need a doorway.
-        wall_tiles: list[list[Tile]] = [[]]
-        while True:
-            current_tile = self.world[y][x]
-            side1_tile = self.world[y + dx][x + dy]
-            side2_tile = self.world[y - dx][x - dy]
+                # Now we "delete" any wall tiles that are on their own.
+                if t.value == 0 and not t.is_walkable and not t.is_dividing_wall:
+                    t.is_walkable = True
 
-            # Test if we've hit a wall.
-            if not current_tile.is_walkable:
-                # Back it up a step so the last x,y is a newly added wall tile.
-                x, y = x - dx, y - dy
-                break
 
-            current_tile.is_walkable = False
-            # TODO: Try aborting wall generation instead of transmuting it. Then
-            #   continue on and pick a different corner.
-            # Check if we're passing by a wall of either type. If we are, we just turn the
-            # dividing wall into a solid wall, so the dungeon looks more natural.
-            # Also, if the wall we're passing by is a dividing wall, we turn it into
-            # a solid wall as well.
-            if side1_tile.is_walkable and side2_tile.is_walkable:
-                current_tile.is_dividing_wall = True
-                current_tile.is_vertical_divider = bool(direction[1])
-                wall_tiles[-1].append(current_tile)
-            else:
-                # if not side1_tile.is_walkable:
-                #     side1_tile.is_dividing_wall = False
-                # if not side2_tile.is_walkable:
-                #     side2_tile.is_dividing_wall = False
-                # We create a new span if there's not an empty one at the end.
-                if wall_tiles[-1]:
-                    wall_tiles.append([])
 
-            self.floor_space -= 1
-            # Take a step forward.
-            x, y = x + dx, y + dy
 
-        # Test if the wall never went anywhere, which can happen if another wall
-        # runs up against this corner.
-        if (x, y) == (tile.x, tile.y):
-            return
-
-        # Add doorways to all spans.
-        for span in wall_tiles:
-            if not span:
-                continue
-            doorway_tile = random.choice(span)
-            doorway_tile.is_walkable = True
-            doorway_tile.is_dividing_wall = False
-            self.floor_space += 1
 
     def pathable(self) -> tuple[bool, int]:
         # First, we collect all the floor tiles and set the visibility. Tiles
@@ -371,16 +319,98 @@ class Generator:
         # print(f"Visited {visited_count}/{len(floor_tiles)}")
         return visited_count == len(floor_tiles), len(floor_tiles)
 
-    def add_walls(self):
+    def add_wall(self, tile: Tile, direction: tuple[int, int]) -> list[list[Tile]]:
+        """Adds a wall stretching along a random axis from a corner to the next wall."""
+        dx, dy = direction
+        # Save the original position, but stepped in once so it's a newly added wall
+        # tile.
+        og_x, og_y = tile.x + dx, tile.y + dy
+        x, y = og_x, og_y
+        # This list holds all the actual wall tiles. This doesn't includes walls
+        # that were transmuted into solid walls. This way, we don't open a door that
+        # leads to a solid wall. Each nested list represents a span of walls that
+        # have walkable tiles on each side, all of which need a doorway.
+        wall_tiles: list[list[Tile]] = [[]]
+        while True:
+            current_tile = self.world[y][x]
+            side1_tile = self.world[y + dx][x + dy]
+            side2_tile = self.world[y - dx][x - dy]
+
+            # Test if we've hit a wall.
+            if not current_tile.is_walkable:
+                # Mark where a wall t-bones another.
+                if current_tile.is_dividing_wall:
+                    current_tile.is_span_connection = True
+                # Back it up a step so the last x,y is a newly added wall tile.
+                x, y = x - dx, y - dy
+                break
+
+            # TODO: Try aborting wall generation instead of transmuting it. Then
+            #   continue on and pick a different corner.
+            # Check if we're passing by a wall of either type. If we are, we just turn the
+            # dividing wall into a solid wall, so the dungeon looks more natural.
+            # Also, if the wall we're passing by is a dividing wall, we turn it into
+            # a solid wall as well.
+            if side1_tile.is_walkable and side2_tile.is_walkable:
+                current_tile.is_walkable = False
+                current_tile.is_dividing_wall = True
+                current_tile.is_vertical_divider = bool(direction[1])
+                wall_tiles[-1].append(current_tile)
+            else:
+                # if not side1_tile.is_walkable:
+                #     side1_tile.is_dividing_wall = False
+                # if not side2_tile.is_walkable:
+                #     side2_tile.is_dividing_wall = False
+                # We create a new span if there's not an empty one at the end.
+                if wall_tiles[-1]:
+                    wall_tiles.append([])
+
+            self.floor_space -= 1
+            # Take a step forward.
+            x, y = x + dx, y + dy
+
+        return wall_tiles
+
+    def add_walls(self) -> list[list[Tile]]:
         possible_walls = []
         for row in self.world:
             for tile in row:
                 possible_walls.extend(tile.possible_wall_directions())
 
+        wall_spans:list[list[Tile]] = []
         for tile, direction in random.sample(
             possible_walls, k=len(possible_walls) // 3
         ):
-            self.add_wall(tile, direction)
+            wall_spans.extend(self.add_wall(tile, direction))
+
+        return wall_spans
+
+    def add_doors(self, spans):
+        # First, we need to check the spans for intersecting walls. We marked
+        # the location if such in the add_walls() step, now we need to actually
+        # split the span.
+        checked_spans = []
+        for span in spans:
+
+            start = 0
+            for i, tile in enumerate(span):
+                if tile.is_span_connection:
+                    new_span = span[start:i]
+                    if new_span:
+                        checked_spans.append(new_span)
+                    start = i+1
+            new_span = span[start:]
+            if new_span:
+                checked_spans.append(new_span)
+
+        # Add doorways to all spans.
+        for span in checked_spans:
+            if not span:
+                continue
+            doorway_tile = random.choice(span)
+            doorway_tile.is_walkable = True
+            doorway_tile.is_dividing_wall = False
+            self.floor_space += 1
 
     def generate_world(self):
         starting_room = self.place_starting_rooms()
@@ -399,10 +429,9 @@ class Generator:
                     self.world[y][x].is_walkable = True
 
         self.marching_squares()
-        self.add_walls()
-        # Recalculate the wall edges, because the wall-adding step might have
-        # changed some dividing walls into solid walls.
-        self.marching_squares()
+        spans = self.add_walls()
+        self.add_doors(spans)
+
 
     def try_generation(self, max_tries=-1, required_floor_space=700):
         tries = 0
