@@ -2,7 +2,7 @@ from PIL import Image
 from os import listdir
 import diablo1_dungeon_generation as d1
 
-TILE_DIR = r"C:\Users\Crispin Stichart\Pictures\pokemon_cave_tileset\deep\\"
+TILE_DIR = "pokemon_tileset/"
 TILE_SIZE = 32
 def load_tiles():
     tiles = {}
