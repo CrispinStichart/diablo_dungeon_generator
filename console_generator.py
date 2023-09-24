@@ -17,7 +17,11 @@ def world_to_string(world, spaces=2):
     for row in world:
         row_str = []
         for tile in row:
-            if tile.is_walkable:
+            if tile.is_dividing_wall and tile.is_walkable:
+                tile_char = RED + divider_characters[tile.is_vertical_divider]
+            elif tile.is_dividing_wall:
+                tile_char = BLUE + divider_characters[tile.is_vertical_divider]
+            elif tile.is_walkable:
                 if tile.visited:
                     tile_char = "."
                 else:
@@ -64,7 +68,6 @@ def debug():
             generator.marching_squares()
             spans = generator.add_walls()
             generator.add_doors(spans)
-            generator.marching_squares()
             can_path, size = generator.pathable()
 
             print(world_to_string(world))

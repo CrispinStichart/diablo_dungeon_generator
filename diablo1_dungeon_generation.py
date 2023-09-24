@@ -285,12 +285,12 @@ class Generator:
                 t.value >>= 1
 
                 # Now we "delete" any wall tiles that are on their own.
-                if t.value == 0 and not t.is_walkable and not t.is_dividing_wall:
-                    t.is_walkable = True
-
-
-
-
+                # Edit: I don't think this is a good look, actually. The levels
+                #   are too open, and judging from the minimap screenshot from
+                #   actual D1, I don't think they took this aproach. Leaving this
+                #   here in case I change my mind.
+                # if t.value == 0 and not t.is_dividing_wall:
+                #     t.is_walkable = True
 
     def pathable(self) -> tuple[bool, int]:
         # First, we collect all the floor tiles and set the visibility. Tiles
@@ -304,7 +304,7 @@ class Generator:
         # len(floor_tiles), then everything is pathable. Otherwise, it means there's
         # an inacessible room.
         offsets = [(-1, 0), (0, -1), (1, 0), (0, 1)]  # left, up, right, down
-        tile_stack = [floor_tiles[0]]
+        tile_stack = [floor_tiles[0]] if floor_tiles else []
         visited_count = 0
         while tile_stack:
             tile = tile_stack.pop()
@@ -377,7 +377,7 @@ class Generator:
             for tile in row:
                 possible_walls.extend(tile.possible_wall_directions())
 
-        wall_spans:list[list[Tile]] = []
+        wall_spans: list[list[Tile]] = []
         for tile, direction in random.sample(
             possible_walls, k=len(possible_walls) // 3
         ):
@@ -391,14 +391,13 @@ class Generator:
         # split the span.
         checked_spans = []
         for span in spans:
-
             start = 0
             for i, tile in enumerate(span):
                 if tile.is_span_connection:
                     new_span = span[start:i]
                     if new_span:
                         checked_spans.append(new_span)
-                    start = i+1
+                    start = i + 1
             new_span = span[start:]
             if new_span:
                 checked_spans.append(new_span)
@@ -420,7 +419,7 @@ class Generator:
         for room in self.rooms:
             self.floor_space += room.width * room.height
         # TODO: refactor everything
-        if self.floor_space < 700:
+        if self.floor_space < 750:
             return
         # Carve out the rooms.
         for room in self.rooms:
@@ -432,11 +431,12 @@ class Generator:
         spans = self.add_walls()
         self.add_doors(spans)
 
-
     def try_generation(self, max_tries=-1, required_floor_space=700):
         tries = 0
         pathable_called = 0
         while tries < max_tries or max_tries == -1:
+            self.reset()
+
             tries += 1
             self.generate_world()
             if self.floor_space < required_floor_space:
@@ -445,7 +445,6 @@ class Generator:
             can_path, size = self.pathable()
             if can_path and size >= required_floor_space:
                 break
-            self.reset()
             # if not can_path:
             #     print_world()
         # print("Called pathable()", pathable_called, "times.")
