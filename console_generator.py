@@ -17,15 +17,8 @@ def world_to_string(world, spaces=2):
     for row in world:
         row_str = []
         for tile in row:
-            if tile.is_dividing_wall and tile.is_walkable:
-                tile_char = RED + divider_characters[tile.is_vertical_divider]
-            elif tile.is_dividing_wall:
-                tile_char = BLUE + divider_characters[tile.is_vertical_divider]
-            elif tile.is_walkable:
-                if tile.visited:
-                    tile_char = "."
-                else:
-                    tile_char = RED + "."
+            if tile.is_walkable:
+                tile_char = "."
             elif tile.value == 0 and not tile.is_walkable and not tile.is_dividing_wall:
                 tile_char = "o"
             elif tile.is_dividing_wall:
@@ -45,7 +38,7 @@ def world_to_string(world, spaces=2):
             else:
                 tile_char = RED + chr(97 + tile.value)
             row_str.append(tile_char + ENDC)
-        lines.append((" " * 2).join(row_str))
+        lines.append((" " * spaces).join(row_str))
 
     return "\n".join(lines)
 
@@ -55,8 +48,9 @@ def benchmark():
     rounds = 1000
     total_tries = 0
     for _i in range(rounds):
-        this_round_tries, _ = generator.try_generation()
-        total_tries += this_round_tries
+        generator.try_generation()
+        total_tries += generator.tries
+
         print(f"Try {_i}, took average so far: {total_tries/(_i+1)}")
 
 
@@ -82,11 +76,13 @@ def debug():
         with open("output/world_without_walls.pickle", "wb") as f:
             pickle.dump(world, f)
 
+
 def main():
     generator = d1.Generator()
-    tries, world = generator.try_generation()
-    print(world_to_string(world))
-    print(f"Took {tries} tries.")
+    generator.try_generation(required_floor_space=500)
+    print(world_to_string(generator.world))
+    print(f"Took {generator.tries} tries.")
+
 
 if __name__ == "__main__":
     # debug()

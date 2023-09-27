@@ -1,3 +1,5 @@
+import pickle
+
 from PIL import Image
 from os import listdir
 import diablo1_dungeon_generation as d1
@@ -19,12 +21,14 @@ def load_tiles():
 def main():
     # Load the tiles.
     tiles = load_tiles()
-    # Set up the empty canvas.
-    size = (d1.MAP_SIZE * TILE_SIZE, d1.MAP_SIZE * TILE_SIZE)
+    # Create the generator.
+    generator = d1.Generator()
+    # Create a blank canvas.
+    size = (generator.width * TILE_SIZE, generator.height * TILE_SIZE)
     canvas = Image.new("RGBA", size)
     # Arange the sprites on the canvas.
-    _, world = d1.try_generation()
-    for row in world:
+    generator.try_generation()
+    for row in generator.world:
         for tile in row:
             if tile.is_dividing_wall:
                 sprite = tiles["rock"]
