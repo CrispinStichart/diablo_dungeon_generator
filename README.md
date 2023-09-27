@@ -11,6 +11,8 @@ Currently not implementing the starting rooms the way D1 does it, with a chance 
 
 Also, not handling "saddle points", where a tile could be rendered as either corner. See the screenshots directory for examples. The pokemon ones just leave the tile blank, and the ascii one displays a scarlet letter.
 
+Also, you'll notice that in the ASCII screenshots, there are some walls marked with `o`, and in the pokemon ones, they're the cracked rock sprite. These are "bedrock" tiles that were leftover after carving out the intial rooms, before adding the dividing walls. I'm probably going to end up turning them into dividing walls.
+
 # Examples
 
 See the examples directory for more examples.
