@@ -390,12 +390,17 @@ class Generator:
 
             # TODO: Try aborting wall generation instead of transmuting it. Then
             #   continue on and pick a different corner.
-            # Check if we're passing by a wall of either type. If we are, we just turn the
-            # dividing wall into a solid wall, so the dungeon looks more natural.
+            # TODO: Try creating solid wall instead of skipping. Would need to
+            #   rerun marching squares afterword, unless we fix up the tile and
+            #   neighbors as we do it.
+            # Only places a dividing wall tiles if there's an empty tile on
+            # either side. This is to avoid running a wall against another wall,
+            # which just looks weird.
             if side1_tile.is_walkable and side2_tile.is_walkable:
                 current_tile.is_walkable = False
                 current_tile.is_dividing_wall = True
                 current_tile.is_vertical_divider = bool(direction[1])
+
                 wall_tiles[-1].append(current_tile)
                 self.floor_space -= 1
             else:
