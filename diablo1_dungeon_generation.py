@@ -5,7 +5,6 @@ https://www.boristhebrave.com/2019/07/14/dungeon-generation-in-diablo-1/
 from dataclasses import dataclass
 import random
 from enum import Enum
-from typing import List, Tuple, Any
 
 # Top right, top left, bottom left, bottom right.
 OBLIQUE_CORNERS = {
@@ -242,7 +241,7 @@ class Generator:
                 ),
             )
 
-    def try_budding(self, room, axis):
+    def try_budding(self, room: Room, axis: Axis) -> None:
         """
         `room` is an unverified candidate room location. In this method, we
         verify that we can actually place it (that it doesn't overlap with
@@ -300,7 +299,7 @@ class Generator:
             for x in range(self.width):
                 t = self.world[y][x]
                 t.value = 0
-                for i, (dx, dy) in enumerate(offsets):
+                for dx, dy in offsets:
                     t.value |= corner_grid[y + dy][x + dx]
                     t.value <<= 1
                 t.value >>= 1
@@ -319,18 +318,25 @@ class Generator:
         others. This might not be true if we get really unlucky with the
         generation.
         """
-        # First, we collect all the floor tiles and set the visibility. Tiles
-        # are created with visibility set to False, however, we might rerun this
+        # First, set the the visted_status for all the walkable tiles. Tiles are
+        # created with visited set to False, however, we might rerun this
         # algorithm multiple times with the same set of tiles.
-        floor_tiles = [tile for row in self.world for tile in row if tile.is_walkable]
-        for tile in floor_tiles:
-            tile.visited = False
+        starting_tile = None
+        known_walkable_tiles = 0
+        for row in self.world:
+            for tile in row:
+                if tile.is_walkable:
+                    tile.visited = False
+                    known_walkable_tiles += 1
+                    if not starting_tile:
+                        starting_tile = tile
+
         # Then, we pick any floor tile and flood fill, counting the number of
         # touched tiles. If, at the end, we touched the same number as
         # len(floor_tiles), then everything is pathable. Otherwise, it means there's
         # an inacessible room.
         offsets = [(-1, 0), (0, -1), (1, 0), (0, 1)]  # left, up, right, down
-        tile_stack = [floor_tiles[0]] if floor_tiles else []
+        tile_stack = [starting_tile] if starting_tile else []
         visited_count = 0
         while tile_stack:
             tile = tile_stack.pop()
@@ -343,16 +349,16 @@ class Generator:
                 if neighbor.is_walkable and neighbor.visited == False:
                     tile_stack.append(neighbor)
 
-        pathable = visited_count == len(floor_tiles)
+        can_path = visited_count == known_walkable_tiles
 
         # I've been keeping track of walkable tiles in self.floor_space, but I
         # want to make sure I didn't mess that up.
-        if pathable and visited_count != self.floor_space:
+        if can_path and visited_count != self.floor_space:
             raise Exception(
                 f"visited_count ({visited_count}) doesn't match self.floor_space ({self.floor_space})"
             )
 
-        return pathable
+        return can_path
 
     def add_wall(self, tile: Tile, direction: tuple[int, int]) -> list[list[Tile]]:
         """
@@ -384,8 +390,6 @@ class Generator:
                 # Mark where a wall t-bones another.
                 if current_tile.is_dividing_wall:
                     current_tile.is_span_connection = True
-                # Back it up a step so the last x,y is a newly added wall tile.
-                x, y = x - dx, y - dy
                 break
 
             # TODO: Try aborting wall generation instead of transmuting it. Then
@@ -434,7 +438,7 @@ class Generator:
 
         return wall_spans
 
-    def add_doors(self, spans):
+    def add_doors(self, spans: list[list[Tile]]):
         """
         Adds all the doors, although first it has to check the spans for spots
         where they intersect, and split the span at that spot.
